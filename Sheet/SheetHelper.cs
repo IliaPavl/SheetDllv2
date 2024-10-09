@@ -440,7 +440,7 @@ namespace Sheet
                 {
                     char lastColumnLetter = result[1, result.GetLength(1) - 1][0]; // Последняя буква из найденных координат
                     var finalCoordinateEnd = $"{lastColumnLetter}{cellValueEnd}";
-                    return new[] { $"{columnLetterStart}{cellValueStart}", finalCoordinateEnd };
+                    return new[] { $"{result[1, 0][0]}{cellValueStart}", finalCoordinateEnd };
                 }
             }
 
