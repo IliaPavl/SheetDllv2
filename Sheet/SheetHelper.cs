@@ -26,6 +26,7 @@ namespace Sheet
         void UpdateCommand(string command, string[] listValues);
         void CreateCommand(string command, string[] listValues);
         void DeleteCommand(string command);
+        string FindData(string jsonParamsNames, string wordToSearch, string dateStart, string dateEnd, string settingJson);
     }
 
     [ComVisible(true)]
