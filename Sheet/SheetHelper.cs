@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -27,7 +27,6 @@ namespace Sheet
         void UpdateCommand(string command, string[] listValues);
         void CreateCommand(string command, string[] listValues);
         void DeleteCommand(string command);
-        string FindData(string jsonParamsNames, string wordToSearch, string dateStart, string dateEnd, string settingJson);
     }
 
     [ComVisible(true)]
@@ -42,55 +41,51 @@ namespace Sheet
 
         //Установка настроек ______________________________________________________________________
         public void SetProperty(
-            string sheetId, 
-            string sheetName, 
-            string passJsonKey, 
+            string sheetId,
+            string sheetName,
+            string passJsonKey,
             string nameProgect)
         {
-            try
+
+            ApplicationName = nameProgect;
+            SpreadsheetId = sheetId;
+            sheet = sheetName;
+            GoogleCredential credential;
+            using (var stream = new FileStream(passJsonKey, FileMode.Open, FileAccess.Read))
             {
-                ApplicationName = nameProgect;
-                SpreadsheetId = sheetId;
-                sheet = sheetName;
-                GoogleCredential credential;
-                using (var stream = new FileStream(passJsonKey, FileMode.Open, FileAccess.Read))
-                {
-                    credential = GoogleCredential.FromStream(stream)
-                        .CreateScoped(Scopes);
-                }
-
-                // Create Google Sheets API service.
-                service = new SheetsService(new BaseClientService.Initializer()
-                {
-                    HttpClientInitializer = credential,
-                    ApplicationName = ApplicationName,
-                });
+                credential = GoogleCredential.FromStream(stream)
+                    .CreateScoped(Scopes);
             }
-            catch (Exception e) { Console.WriteLine("Error set settings:" + e); }
-        }
-        
-        public void SetPropertyByJson(
-           string sheetId,
-           string sheetName,
-           string jsonKey,
-           string nameProgect)
-       {
-       try
-           {
-               ApplicationName = nameProgect;
-               SpreadsheetId = sheetId;
-               sheet = sheetName;
-               GoogleCredential credential = GoogleCredential.FromJson(jsonKey).CreateScoped(Scopes);
 
-               // Create Google Sheets API service.
-               service = new SheetsService(new BaseClientService.Initializer()
-               {
-                   HttpClientInitializer = credential,
-                   ApplicationName = ApplicationName,
-               });
-           }
-           catch (Exception e) { Console.WriteLine("Error set settings:" + e); }
-       }
+            // Create Google Sheets API service.
+            service = new SheetsService(new BaseClientService.Initializer()
+            {
+                HttpClientInitializer = credential,
+                ApplicationName = ApplicationName,
+            });
+
+        }
+
+        public void SetPropertyByJson(
+            string sheetId,
+            string sheetName,
+            string jsonKey,
+            string nameProgect)
+        {
+
+            ApplicationName = nameProgect;
+            SpreadsheetId = sheetId;
+            sheet = sheetName;
+            GoogleCredential credential = GoogleCredential.FromJson(jsonKey).CreateScoped(Scopes);
+
+            // Create Google Sheets API service.
+            service = new SheetsService(new BaseClientService.Initializer()
+            {
+                HttpClientInitializer = credential,
+                ApplicationName = ApplicationName,
+            });
+
+        }
 
         //Красивый вывод __________________________________________________________________________
         public void PrintEntries(string[,] values)
@@ -170,70 +165,58 @@ namespace Sheet
         //Любой запрос сюда подставляеш ___________________________________________________________
         public string[,] ReadCommand(string programString)
         {
-            try
+
+            SpreadsheetsResource.ValuesResource.GetRequest request =
+                     service.Spreadsheets.Values.Get(SpreadsheetId, programString);
+            IList<IList<object>> obj = request.Execute().Values;
+            string[,] list = null;
+            int firstColumn = obj.Count, endColumn = -1;
+            if (obj != null && obj.Count > 0)
             {
-                SpreadsheetsResource.ValuesResource.GetRequest request =
-                         service.Spreadsheets.Values.Get(SpreadsheetId, programString);
-                IList<IList<object>> obj = request.Execute().Values;
-                string[,] list = null;
-                int firstColumn = obj.Count, endColumn = -1;
-                if (obj != null && obj.Count > 0)
-                {
-                    for (int j = 0; j < obj.Count; j++)
-                        if (endColumn < obj[j].Count)
-                            endColumn = obj[j].Count;
+                for (int j = 0; j < obj.Count; j++)
+                    if (endColumn < obj[j].Count)
+                        endColumn = obj[j].Count;
 
-                    list = new string[firstColumn, endColumn];
+                list = new string[firstColumn, endColumn];
 
-                    for (int j = 0; j < obj.Count; j++)
-                        for (int i = 0; i < obj[j].Count; i++)
-                            list[j, i] = (string)obj[j][i];
-                }
-                return list;
+                for (int j = 0; j < obj.Count; j++)
+                    for (int i = 0; i < obj[j].Count; i++)
+                        list[j, i] = (string)obj[j][i];
             }
-            catch (Exception e)
-            { Console.WriteLine("Error: " + e); return null; }
+            return list;
+
         }
 
 
         public void UpdateCommand(string command, string[] listValues)
         {
-            try
-            {
-                var valueRange = new ValueRange();
-                valueRange.Values = new List<IList<object>> { listValues };
-                var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, command);
-                updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-                var appendReponse = updateRequest.Execute();
-            }
-            catch (Exception e)
-            { Console.WriteLine("Error: " + e); }
+
+            var valueRange = new ValueRange();
+            valueRange.Values = new List<IList<object>> { listValues };
+            var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, command);
+            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+            var appendReponse = updateRequest.Execute();
+
         }
 
         public void CreateCommand(string command, string[] listValues)
         {
-            try
-            {
-                var valueRange = new ValueRange();
-                valueRange.Values = new List<IList<object>> { listValues };
-                var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, command);
-                updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-                var appendReponse = updateRequest.Execute();
-            }
-            catch (Exception e)
-            { Console.WriteLine("Error: " + e); }
+
+            var valueRange = new ValueRange();
+            valueRange.Values = new List<IList<object>> { listValues };
+            var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, command);
+            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+            var appendReponse = updateRequest.Execute();
+
         }
 
         public void DeleteCommand(string command)
         {
-            try
-            {
-                var requestBody = new ClearValuesRequest();
-                var deleteRequest = service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, command);
-                var deleteReponse = deleteRequest.Execute();
-            }
-            catch (Exception e)
-            { Console.WriteLine("Error: " + e); }
+
+            var requestBody = new ClearValuesRequest();
+            var deleteRequest = service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, command);
+            var deleteReponse = deleteRequest.Execute();
+
         }
 
         private string[,] FindWords(string[] words, string[,] array)
@@ -351,8 +334,8 @@ namespace Sheet
             string[,] findedData = ReadEntries(coordinates[0], coordinates[1]);
 
             //возврвщвем в формате json
-            return returnFindDataToJson(findedWords,findedData); 
-           
+            return returnFindDataToJson(findedWords, findedData);
+
         }
 
         private string returnNullDataToJson()
@@ -381,7 +364,8 @@ namespace Sheet
                 for (int j = 0; j < columnCount; j++)
                 {
                     string header = findedWords[0, j]; // Заголовок из первой строки
-                    string value = findedData[i, Convert.ToInt32(findedWords[2, j])]; // Значение из findedData по индексу
+                    int number2 = Convert.ToInt32(findedWords[2, j]);
+                    string value = findedData[i, number2]; // Значение из findedData по индексу
                     obj[header] = value;
                 }
                 results.Add(obj);
@@ -460,7 +444,7 @@ namespace Sheet
                     continue;
                 }
 
-                if (cellValueEnd > 0 && (counter + 1 == count || (currentDate>= endDate && counter>0)))
+                if (cellValueEnd > 0 && (counter + 1 == count || (currentDate >= endDate && counter > 0)))
                 {
                     char lastColumnLetter = result[1, result.GetLength(1) - 1][0]; // Последняя буква из найденных координат
                     var finalCoordinateEnd = $"{lastColumnLetter}{cellValueEnd}";
