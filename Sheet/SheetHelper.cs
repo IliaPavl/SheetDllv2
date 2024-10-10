@@ -15,6 +15,7 @@ namespace Sheet
     public interface ISheetHelper
     {
         void SetProperty(string sheetId, string sheetName, string passJsonKey, string nameProgect);
+        void SetPropertyByJson(string sheetId, string sheetName, string jsonKey, string nameProgect);
         void PrintEntries(string[,] values);
         void DeleteEntry(string start, string end);
         string ReadEntry(string point);
@@ -67,6 +68,29 @@ namespace Sheet
             }
             catch (Exception e) { Console.WriteLine("Error set settings:" + e); }
         }
+        
+        public void SetPropertyByJson(
+           string sheetId,
+           string sheetName,
+           string jsonKey,
+           string nameProgect)
+       {
+       try
+           {
+               ApplicationName = nameProgect;
+               SpreadsheetId = sheetId;
+               sheet = sheetName;
+               GoogleCredential credential = GoogleCredential.FromJson(jsonKey).CreateScoped(Scopes);
+
+               // Create Google Sheets API service.
+               service = new SheetsService(new BaseClientService.Initializer()
+               {
+                   HttpClientInitializer = credential,
+                   ApplicationName = ApplicationName,
+               });
+           }
+           catch (Exception e) { Console.WriteLine("Error set settings:" + e); }
+       }
 
         //Красивый вывод __________________________________________________________________________
         public void PrintEntries(string[,] values)
