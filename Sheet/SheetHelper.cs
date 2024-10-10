@@ -14,7 +14,8 @@ namespace Sheet
     [ComVisible(true)]
     public interface ISheetHelper
     {
-        void SetProperty(string sheetId, string sheetName, string passJsonKey, string nameProgect);
+        bool SetProperty(string sheetId, string sheetName, string passJsonKey, string nameProgect);
+        bool SetPropertyByJson(string sheetId, string sheetName, string jsonKey, string nameProgect);
         void PrintEntries(string[,] values);
         void DeleteEntry(string start, string end);
         string ReadEntry(string point);
@@ -26,7 +27,6 @@ namespace Sheet
         void UpdateCommand(string command, string[] listValues);
         void CreateCommand(string command, string[] listValues);
         void DeleteCommand(string command);
-        string FindData(string jsonParamsNames, string wordToSearch, string dateStart, string dateEnd, string settingJson);
     }
 
     [ComVisible(true)]
@@ -40,10 +40,10 @@ namespace Sheet
         static SheetsService service;
 
         //Установка настроек ______________________________________________________________________
-        public void SetProperty(
-            string sheetId, 
-            string sheetName, 
-            string passJsonKey, 
+        public bool SetProperty(
+            string sheetId,
+            string sheetName,
+            string passJsonKey,
             string nameProgect)
         {
             try
@@ -65,7 +65,35 @@ namespace Sheet
                     ApplicationName = ApplicationName,
                 });
             }
-            catch (Exception e) { Console.WriteLine("Error set settings:" + e); }
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return false; }
+            return true;
+
+        }
+
+        public bool SetPropertyByJson(
+            string sheetId,
+            string sheetName,
+            string jsonKey,
+            string nameProgect)
+        {
+            try
+            {
+                ApplicationName = nameProgect;
+                SpreadsheetId = sheetId;
+                sheet = sheetName;
+                GoogleCredential credential = GoogleCredential.FromJson(jsonKey).CreateScoped(Scopes);
+
+                // Create Google Sheets API service.
+                service = new SheetsService(new BaseClientService.Initializer()
+                {
+                    HttpClientInitializer = credential,
+                    ApplicationName = ApplicationName,
+                });
+            }
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return false; }
+            return true;
         }
 
         //Красивый вывод __________________________________________________________________________
@@ -169,120 +197,127 @@ namespace Sheet
             }
             catch (Exception e)
             { Console.WriteLine("Error: " + e); return null; }
+
         }
 
 
         public void UpdateCommand(string command, string[] listValues)
         {
-            try
-            {
-                var valueRange = new ValueRange();
-                valueRange.Values = new List<IList<object>> { listValues };
-                var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, command);
-                updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-                var appendReponse = updateRequest.Execute();
-            }
-            catch (Exception e)
-            { Console.WriteLine("Error: " + e); }
+
+            var valueRange = new ValueRange();
+            valueRange.Values = new List<IList<object>> { listValues };
+            var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, command);
+            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+            var appendReponse = updateRequest.Execute();
+
         }
 
         public void CreateCommand(string command, string[] listValues)
         {
-            try
-            {
-                var valueRange = new ValueRange();
-                valueRange.Values = new List<IList<object>> { listValues };
-                var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, command);
-                updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-                var appendReponse = updateRequest.Execute();
-            }
-            catch (Exception e)
-            { Console.WriteLine("Error: " + e); }
+
+            var valueRange = new ValueRange();
+            valueRange.Values = new List<IList<object>> { listValues };
+            var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, command);
+            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+            var appendReponse = updateRequest.Execute();
+
         }
 
         public void DeleteCommand(string command)
         {
-            try
-            {
-                var requestBody = new ClearValuesRequest();
-                var deleteRequest = service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, command);
-                var deleteReponse = deleteRequest.Execute();
-            }
-            catch (Exception e)
-            { Console.WriteLine("Error: " + e); }
+
+            var requestBody = new ClearValuesRequest();
+            var deleteRequest = service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, command);
+            var deleteReponse = deleteRequest.Execute();
+
         }
 
         private string[,] FindWords(string[] words, string[,] array)
         {
-            List<string> foundWords = new List<string>();
-            List<string> foundCoordinates = new List<string>();
-            List<int> letterValues = new List<int>(); // Список для хранения числовых значений буквенных координат
-
-            for (int i = 0; i < array.GetLength(0); i++)
+            try
             {
-                for (int j = 0; j < array.GetLength(1); j++)
+                List<string> foundWords = new List<string>();
+                List<string> foundCoordinates = new List<string>();
+                List<int> letterValues = new List<int>(); // Список для хранения числовых значений буквенных координат
+
+                for (int i = 0; i < array.GetLength(0); i++)
                 {
-                    foreach (var word in words)
+                    for (int j = 0; j < array.GetLength(1); j++)
                     {
-                        if (array[i, j] == word)
+                        foreach (var word in words)
                         {
-                            char columnLetter = (char)('a' + j); // 'a' + индекс столбца
-                            int rowNumber = i + 1; // Индекс строки + 1
-                            foundWords.Add(word);
-                            foundCoordinates.Add($"{columnLetter}{rowNumber}");
-                            letterValues.Add(columnLetter - 'a' + 1); // Сохраняем числовое значение буквы (a=1, b=2 и т.д.)
+                            if (array[i, j] == word)
+                            {
+                                char columnLetter = (char)('a' + j); // 'a' + индекс столбца
+                                int rowNumber = i + 1; // Индекс строки + 1
+                                foundWords.Add(word);
+                                foundCoordinates.Add($"{columnLetter}{rowNumber}");
+                                letterValues.Add(columnLetter - 'a' + 1); // Сохраняем числовое значение буквы (a=1, b=2 и т.д.)
+                            }
                         }
                     }
                 }
+
+                if (foundWords.Count == 0)
+                {
+                    return new string[3, 0]; // Возвращаем пустой массив с тремя строками
+                }
+
+                string[,] resultArray = new string[3, foundWords.Count];
+
+                int firstLetterValue = letterValues[0]; // Числовое значение первой буквы
+
+                for (int i = 0; i < foundWords.Count; i++)
+                {
+                    resultArray[0, i] = foundWords[i];         // Слова
+                    resultArray[1, i] = foundCoordinates[i];   // Координаты
+                    resultArray[2, i] = (letterValues[i] - firstLetterValue).ToString(); // Числовое значение текущей буквы - 1 и - значение первой буквы
+                }
+
+                return resultArray;
             }
-
-            if (foundWords.Count == 0)
-            {
-                return new string[3, 0]; // Возвращаем пустой массив с тремя строками
-            }
-
-            string[,] resultArray = new string[3, foundWords.Count];
-
-            int firstLetterValue = letterValues[0]; // Числовое значение первой буквы
-
-            for (int i = 0; i < foundWords.Count; i++)
-            {
-                resultArray[0, i] = foundWords[i];         // Слова
-                resultArray[1, i] = foundCoordinates[i];   // Координаты
-                resultArray[2, i] = (letterValues[i] - firstLetterValue).ToString(); // Числовое значение текущей буквы - 1 и - значение первой буквы
-            }
-
-            return resultArray;
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return null; }
         }
 
         private string[] getJsonObjNames(String jsonString)
         {
-
-            // Parse the JSON string into a JObject
-            JObject jsonObject = JObject.Parse(jsonString);
-
-            // Extract the keys into a list
-            List<string> keysList = new List<string>();
-            foreach (var property in jsonObject.Properties())
+            try
             {
-                keysList.Add(property.Name);
-            }
+                // Parse the JSON string into a JObject
+                JObject jsonObject = JObject.Parse(jsonString);
 
-            // Convert the list to an array
-            string[] keysArray = keysList.ToArray();
-            return keysArray;
+                // Extract the keys into a list
+                List<string> keysList = new List<string>();
+                foreach (var property in jsonObject.Properties())
+                {
+                    keysList.Add(property.Name);
+                }
+
+                // Convert the list to an array
+                string[] keysArray = keysList.ToArray();
+                return keysArray;
+            }
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return null; }
         }
 
         private static (int, int) GetIndexAndCount(string json)
         {
-            // Парсим JSON строку
-            var jsonObject = JObject.Parse(json);
+            try
+            {
 
-            // Получаем значения index и count с установкой значений по умолчанию
-            int index = (int)(jsonObject["index"] ?? 0);
-            int count = (int)(jsonObject["count"] ?? 50);
+                // Парсим JSON строку
+                var jsonObject = JObject.Parse(json);
 
-            return (index, count);
+                // Получаем значения index и count с установкой значений по умолчанию
+                int index = (int)(jsonObject["index"] ?? 0);
+                int count = (int)(jsonObject["count"] ?? 50);
+
+                return (index, count);
+            }
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return (0, 0); }
         }
 
         public string FindData(
@@ -293,83 +328,99 @@ namespace Sheet
             string settingJson
             )
         {
-            //ищем таблицу в диапазоне 32/32 ячейки
-            string[,] array = ReadEntries("a1", "z32");
-
-            //получаем index - отступ от первой даты и conut - число строк которые мы берём за проход.
-            var settings = GetIndexAndCount(settingJson);
-
-            //получаем список названий столбцов
-            string[] wordsToFind = getJsonObjNames(jsonParamsNames);
-
-            //находим точные координаты названий
-            string[,] findedWords = FindWords(wordsToFind, array);
-
-            DateTime.TryParse(dateStart, out DateTime startDate);
-            DateTime.TryParse(dateEnd, out DateTime endDate);
-
-            //находим координаты "квадра" таблицы с датами в промежутке от startDate до endDate
-            string[] coordinates = FindDatesInRange(
-                findedWords,
-                wordToSearch,
-                startDate,
-                endDate,
-                settings.Item1,
-                settings.Item2
-                );
-
-            //ищем данные по полученным координатам
-            if (coordinates == null)
+            try
             {
-                return returnNullDataToJson();
+                //ищем таблицу в диапазоне 32/32 ячейки
+                string[,] array = ReadEntries("a1", "z32");
+
+                //получаем index - отступ от первой даты и conut - число строк которые мы берём за проход.
+                var settings = GetIndexAndCount(settingJson);
+
+                //получаем список названий столбцов
+                string[] wordsToFind = getJsonObjNames(jsonParamsNames);
+
+                //находим точные координаты названий
+                string[,] findedWords = FindWords(wordsToFind, array);
+
+                DateTime.TryParse(dateStart, out DateTime startDate);
+                DateTime.TryParse(dateEnd, out DateTime endDate);
+
+                //находим координаты "квадра" таблицы с датами в промежутке от startDate до endDate
+                string[] coordinates = FindDatesInRange(
+                    findedWords,
+                    wordToSearch,
+                    startDate,
+                    endDate,
+                    settings.Item1,
+                    settings.Item2
+                    );
+
+                //ищем данные по полученным координатам
+                if (coordinates == null)
+                {
+                    return returnNullDataToJson();
+                }
+
+                string[,] findedData = ReadEntries(coordinates[0], coordinates[1]);
+
+                //возврвщвем в формате json
+                return returnFindDataToJson(findedWords, findedData);
             }
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return null; }
 
-            string[,] findedData = ReadEntries(coordinates[0], coordinates[1]);
-
-            //возврвщвем в формате json
-            return returnFindDataToJson(findedWords,findedData); 
-           
         }
 
         private string returnNullDataToJson()
         {
-            var results = new List<Dictionary<string, string>>();
-            var finalResult = new
+            try
             {
-                next = 0,
-                result = results
-            };
+                var results = new List<Dictionary<string, string>>();
+                var finalResult = new
+                {
+                    next = 0,
+                    result = results
+                };
 
-            return JsonConvert.SerializeObject(finalResult);
+                return JsonConvert.SerializeObject(finalResult);
+            }
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return null; }
         }
 
 
         private string returnFindDataToJson(string[,] findedWords, string[,] findedData)
         {
-            int rowCount = findedData.GetLength(0);
-            int columnCount = findedWords.GetLength(1);
-
-            var results = new List<Dictionary<string, string>>();
-
-            for (int i = 0; i < rowCount; i++)
+            try
             {
-                var obj = new Dictionary<string, string>();
-                for (int j = 0; j < columnCount; j++)
+                int rowCount = findedData.GetLength(0);
+                int columnCount = findedWords.GetLength(1);
+
+                var results = new List<Dictionary<string, string>>();
+
+                for (int i = 0; i < rowCount; i++)
                 {
-                    string header = findedWords[0, j]; // Заголовок из первой строки
-                    string value = findedData[i, Convert.ToInt32(findedWords[2, j])]; // Значение из findedData по индексу
-                    obj[header] = value;
+                    var obj = new Dictionary<string, string>();
+                    for (int j = 0; j < columnCount; j++)
+                    {
+                        string header = findedWords[0, j]; // Заголовок из первой строки
+                        int number2 = Convert.ToInt32(findedWords[2, j]);
+                        string value = findedData[i, number2]; // Значение из findedData по индексу
+                        obj[header] = value;
+                    }
+                    results.Add(obj);
                 }
-                results.Add(obj);
+
+                var finalResult = new
+                {
+                    next = rowCount,
+                    result = results
+                };
+
+                return JsonConvert.SerializeObject(finalResult);
             }
-
-            var finalResult = new
-            {
-                next = rowCount,
-                result = results
-            };
-
-            return JsonConvert.SerializeObject(finalResult);
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return null; }
         }
 
 
@@ -382,111 +433,126 @@ namespace Sheet
             int count
             )
         {
-            int wordIndex = -1;
-
-            // Поиск индекса слова в результатах
-            for (int i = 0; i < result.GetLength(1); i++)
+            try
             {
-                if (result[0, i] == wordToSearch)
+                int wordIndex = -1;
+
+                // Поиск индекса слова в результатах
+                for (int i = 0; i < result.GetLength(1); i++)
                 {
-                    wordIndex = i;
-                    break;
+                    if (result[0, i] == wordToSearch)
+                    {
+                        wordIndex = i;
+                        break;
+                    }
                 }
+
+                if (wordIndex == -1) return null; // Если слово не найдено
+
+                var coordinatesStr = result[1, wordIndex];
+                char columnLetterStart = coordinatesStr[0];
+                int rowNumberStart = int.Parse(coordinatesStr.Substring(1));
+
+
+
+
+                string start = $"{columnLetterStart}";
+                string end = $"{columnLetterStart}";
+
+                string[,] currentCellValues = ReadEntries(start, end);
+                int cellValueStart = -1;
+                int cellValueEnd = -1;
+
+                // Проверяем значения в ячейках текущего диапазона
+                for (int rowIndex = 0, counter = -1, indexCounter = 0; rowIndex + rowNumberStart
+                    < currentCellValues.GetLength(0); rowIndex++)
+                {
+                    var currentCellValueStart = currentCellValues[rowIndex + rowNumberStart, 0]; // Всегда первый столбец
+
+                    if (!DateTime.TryParse(currentCellValueStart, out DateTime currentDate))
+                        return null; // Если не дата - завершаем поиск
+
+                    // Пропускаем строки на основе значения index
+                    if (cellValueStart < 0 && currentDate >= startDate)
+                        cellValueStart = rowIndex + 1 + rowNumberStart; // Учитываем index
+
+                    if (currentDate >= startDate && currentDate <= endDate)
+                        cellValueEnd = rowIndex + 1 + rowNumberStart;
+
+                    if (cellValueEnd >= 0 && cellValueStart >= 0)
+                        counter = cellValueEnd - cellValueStart;
+
+                    if (counter == 0 && index != indexCounter)
+                    {
+                        indexCounter += 1;
+                        cellValueStart += 1;
+                        continue;
+                    }
+
+
+                    if (cellValueEnd > 0 && (counter + 1 == count || (currentDate >= endDate && counter > 0) || (rowIndex + rowNumberStart >= currentCellValues.GetLength(0) - 1)))
+                    {
+                        char lastColumnLetter = result[1, result.GetLength(1) - 1][0]; // Последняя буква из найденных координат
+                        var finalCoordinateEnd = $"{lastColumnLetter}{cellValueEnd}";
+                        return new[] { $"{result[1, 0][0]}{cellValueStart}", finalCoordinateEnd };
+                    }
+                }
+
+
+                return null; // Если ничего не найдено
             }
-
-            if (wordIndex == -1) return null; // Если слово не найдено
-
-            var coordinatesStr = result[1, wordIndex];
-            char columnLetterStart = coordinatesStr[0];
-            int rowNumberStart = int.Parse(coordinatesStr.Substring(1));
-
-
-
-
-            string start = $"{columnLetterStart}";
-            string end = $"{columnLetterStart}";
-
-            string[,] currentCellValues = ReadEntries(start, end);
-            int cellValueStart = -1;
-            int cellValueEnd = -1;
-
-            // Проверяем значения в ячейках текущего диапазона
-            for (int rowIndex = 0, counter = -1, indexCounter = 0; rowIndex + rowNumberStart
-                < currentCellValues.GetLength(0); rowIndex++)
-            {
-                var currentCellValueStart = currentCellValues[rowIndex + rowNumberStart, 0]; // Всегда первый столбец
-
-                if (!DateTime.TryParse(currentCellValueStart, out DateTime currentDate))
-                    return null; // Если не дата - завершаем поиск
-
-                // Пропускаем строки на основе значения index
-                if (cellValueStart < 0 && currentDate >= startDate)
-                    cellValueStart = rowIndex + 1 + rowNumberStart; // Учитываем index
-
-                if (currentDate >= startDate && currentDate <= endDate)
-                    cellValueEnd = rowIndex + 1 + rowNumberStart;
-
-                if (cellValueEnd >= 0 && cellValueStart >= 0)
-                    counter = cellValueEnd - cellValueStart;
-
-                if (counter == 0 && index != indexCounter)
-                {
-                    indexCounter += 1;
-                    cellValueStart += 1;
-                    continue;
-                }
-
-                if (cellValueEnd > 0 && (counter + 1 == count || (currentDate>= endDate && counter>0)))
-                {
-                    char lastColumnLetter = result[1, result.GetLength(1) - 1][0]; // Последняя буква из найденных координат
-                    var finalCoordinateEnd = $"{lastColumnLetter}{cellValueEnd}";
-                    return new[] { $"{result[1, 0][0]}{cellValueStart}", finalCoordinateEnd };
-                }
-            }
-
-            return null; // Если ничего не найдено
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return null; }
         }
 
 
         public string FilterDates(string[,] data, DateTime startDate, DateTime endDate, int dateColumnIndex)
         {
-            var headers = new List<string>();
-            var result = new List<Dictionary<string, string>>();
-
-            // Получаем заголовки из первой строки
-            for (int i = 0; i < data.GetLength(1); i++)
+            try
             {
-                headers.Add(data[0, i]);
-            }
 
-            // Проходим по данным начиная со второй строки
-            for (int i = 1; i < data.GetLength(0); i++)
-            {
-                var rowDateStr = data[i, dateColumnIndex];
-                if (!string.IsNullOrEmpty(rowDateStr) && DateTime.TryParse(rowDateStr, out DateTime rowDate))
+
+                var headers = new List<string>();
+                var result = new List<Dictionary<string, string>>();
+
+                // Получаем заголовки из первой строки
+                for (int i = 0; i < data.GetLength(1); i++)
                 {
-                    // Проверка на попадание в диапазон
-                    if (rowDate >= startDate && rowDate <= endDate)
+                    headers.Add(data[0, i]);
+                }
+
+                // Проходим по данным начиная со второй строки
+                for (int i = 1; i < data.GetLength(0); i++)
+                {
+                    var rowDateStr = data[i, dateColumnIndex];
+                    if (!string.IsNullOrEmpty(rowDateStr) && DateTime.TryParse(rowDateStr, out DateTime rowDate))
                     {
-                        var rowDict = new Dictionary<string, string>();
-                        for (int j = 0; j < data.GetLength(1); j++)
+                        // Проверка на попадание в диапазон
+                        if (rowDate >= startDate && rowDate <= endDate)
                         {
-                            rowDict[headers[j]] = data[i, j];
+                            var rowDict = new Dictionary<string, string>();
+                            for (int j = 0; j < data.GetLength(1); j++)
+                            {
+                                rowDict[headers[j]] = data[i, j];
+                            }
+                            result.Add(rowDict);
                         }
-                        result.Add(rowDict);
                     }
                 }
+
+                // Формируем итоговый ответ
+                var response = new
+                {
+                    count = result.Count,
+                    date = DateTime.UtcNow.ToString("o"), // Формат ISO 8601
+                    result
+                };
+
+                return JsonConvert.SerializeObject(response);
             }
+            catch (Exception e)
+            { Console.WriteLine("Error: " + e); return null; }
 
-            // Формируем итоговый ответ
-            var response = new
-            {
-                count = result.Count,
-                date = DateTime.UtcNow.ToString("o"), // Формат ISO 8601
-                result
-            };
-
-            return JsonConvert.SerializeObject(response);
         }
     }
 }
