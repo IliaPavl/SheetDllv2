@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using Google.Apis.Auth.OAuth2;
@@ -342,6 +343,8 @@ namespace Sheet
                 //находим точные координаты названий
                 string[,] findedWords = FindWords(wordsToFind, array);
 
+                string[] decimalNames = getDecimalNames(jsonParamsNames);
+
                 DateTime.TryParse(dateStart, out DateTime startDate);
                 DateTime.TryParse(dateEnd, out DateTime endDate);
 
@@ -364,11 +367,31 @@ namespace Sheet
                 string[,] findedData = ReadEntries(coordinates[0], coordinates[1]);
 
                 //возврвщвем в формате json
-                return returnFindDataToJson(findedWords, findedData);
+                return returnFindDataToJson(findedWords, findedData, decimalNames);
             }
             catch (Exception e)
             { Console.WriteLine("Error: " + e); return null; }
 
+        }
+        private string[] getDecimalNames(string jsonString)
+        {
+            try
+            {
+                var dictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonString);
+
+                // Find field names where values start with "DECIMAL"
+                List<string> decimalFields = new List<string>();
+                foreach (var kvp in dictionary)
+                {
+                    if (kvp.Value.StartsWith("DECIMAL"))
+                    {
+                        decimalFields.Add(kvp.Key);
+                    }
+                }
+
+                // Convert to string array and print results
+                return decimalFields.ToArray();
+            }catch (Exception e) { Console.WriteLine(e); return null; }
         }
 
         private string returnNullDataToJson()
@@ -389,24 +412,40 @@ namespace Sheet
         }
 
 
-        private string returnFindDataToJson(string[,] findedWords, string[,] findedData)
+        private string returnFindDataToJson(string[,] findedWords, string[,] findedData, string[] decimalNames)
         {
             try
             {
                 int rowCount = findedData.GetLength(0);
                 int columnCount = findedWords.GetLength(1);
 
-                var results = new List<Dictionary<string, string>>();
+                var results = new List<Dictionary<string, object>>();
 
                 for (int i = 0; i < rowCount; i++)
                 {
-                    var obj = new Dictionary<string, string>();
+                    var obj = new Dictionary<string, object>();
                     for (int j = 0; j < columnCount; j++)
                     {
                         string header = findedWords[0, j]; // Заголовок из первой строки
                         int number2 = Convert.ToInt32(findedWords[2, j]);
                         string value = findedData[i, number2]; // Значение из findedData по индексу
-                        obj[header] = value;
+
+                        if (isDecimal(decimalNames, header))
+                        {
+                            // Преобразование value в число
+                            if (decimal.TryParse(value, out decimal decimalValue))
+                            {
+                                obj[header] = Math.Round(decimalValue, 2); // Сохранение как decimal с двумя знаками
+                            }
+                            else
+                            {
+                                obj[header] = value; // Если преобразование не удалось, сохранить оригинальное значение
+                            }
+                        }
+                        else
+                        {
+                            obj[header] = value; // Сохранение как строка
+                        }
                     }
                     results.Add(obj);
                 }
@@ -417,12 +456,32 @@ namespace Sheet
                     result = results
                 };
 
+                // Сериализация без кастомного конвертера
                 return JsonConvert.SerializeObject(finalResult);
             }
             catch (Exception e)
-            { Console.WriteLine("Error: " + e); return null; }
+            {
+                Console.WriteLine("Error: " + e);
+                return null;
+            }
+
+
         }
 
+        private bool isDecimal(string[] decimalNames, string name) {
+            bool exists = false;
+            if(decimalNames.Length>0 && name!=null)
+            {foreach (var word in decimalNames)
+                {
+                    if (word == name)
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+            }
+            return exists;
+        }
 
         private string[] FindDatesInRange(
             string[,] result,
