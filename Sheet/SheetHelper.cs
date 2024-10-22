@@ -370,7 +370,7 @@ namespace Sheet
                 return returnFindDataToJson(findedWords, findedData, decimalNames);
             }
             catch (Exception e)
-            { Console.WriteLine("Error: " + e); return null; }
+            { return e.ToString(); }
 
         }
         private string[] getDecimalNames(string jsonString)
