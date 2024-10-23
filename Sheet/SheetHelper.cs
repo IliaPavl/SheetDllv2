@@ -347,8 +347,15 @@ namespace Sheet
 
                 string[] decimalNames = getDecimalNames(jsonParamsNames);
 
-                DateTime.TryParse(dateStart, out DateTime startDate);
-                DateTime.TryParse(dateEnd, out DateTime endDate);
+                 bool success = DateTime.TryParse(dateStart, CultureInfo.CreateSpecificCulture("ru-RU"), DateTimeStyles.None,  out DateTime startDate);
+                 bool success2 = DateTime.TryParse(dateEnd, CultureInfo.CreateSpecificCulture("ru-RU"), DateTimeStyles.None, out DateTime endDate);
+                 if (!success) {
+                  throw new Exception("Invalid start date format");
+                 }
+                 if (!success2)
+                 {
+                  throw new Exception("Invalid end date format");
+                 }
 
                 //находим координаты "квадра" таблицы с датами в промежутке от startDate до endDate
                 string[] coordinates = FindDatesInRange(
@@ -532,8 +539,8 @@ namespace Sheet
                 {
                     var currentCellValueStart = currentCellValues[rowIndex + rowNumberStart, 0]; // Всегда первый столбец
 
-                    if (!DateTime.TryParse(currentCellValueStart, out DateTime currentDate))
-                        return null; // Если не дата - завершаем поиск
+                    if (!DateTime.TryParse(currentCellValueStart, CultureInfo.CreateSpecificCulture("ru-RU"), DateTimeStyles.None , out DateTime currentDate))
+                        throw new Exception("Invalid date format:"+ currentCellValueStart);
 
                     // Пропускаем строки на основе значения index
                     if (cellValueStart < 0 && currentDate >= startDate)
