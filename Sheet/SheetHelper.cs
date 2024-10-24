@@ -443,7 +443,7 @@ namespace Sheet
                         if (isDecimal(decimalNames, header))
                         {
                             // Преобразование value в число
-                            if (decimal.TryParse(value, out decimal decimalValue))
+                            if (decimal.TryParse(value, NumberStyles.Any, new CultureInfo("ru-RU"), out decimal decimalValue))
                             {
                                 obj[header] = Math.Round(decimalValue, 2); // Сохранение как decimal с двумя знаками
                             }
